@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Service;
 import utfpr.edu.br.estacionamentoutfpr.model.CarBrandModelDTO;
+import utfpr.edu.br.estacionamentoutfpr.model.ModelDTO;
 import utfpr.edu.br.estacionamentoutfpr.model.Veicle;
 import utfpr.edu.br.estacionamentoutfpr.repository.VeicleRepository;
 import utfpr.edu.br.estacionamentoutfpr.service.VeicleService;
@@ -32,33 +33,6 @@ public class VeicleServiceImpl extends CrudServiceImpl<Veicle, UUID> implements 
         return this.veicleRepository;
     }
 
-    /*
-    String body = "{\n" +
-                "\t\"codigoTabelaReferencia\": " + CarBrandModelDTO.REFERENCE_TABLE + ",\n" +
-                "\t\"codigoTipoVeiculo\": " + CarBrandModelDTO.VEICLE_TYPE +"\n" +
-                "}";
-        System.out.println(body);
-        HttpClient client = HttpClient.newHttpClient();
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(CarBrandModelDTO.URL_BRAND))
-                .header("Content-Type", "application/json")
-                .header("chave" , "$2y$10$8IAZn7HKq7QJWbh37N3GOOeRVv")
-                .POST(HttpRequest.BodyPublishers.ofString(body))
-                .build();
-        String teste = "";
-        client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenApply(HttpResponse::body)
-                .thenAccept(response -> {
-                    try {
-                        response = response.replace("Label", "label").replace("Value","value");
-                        List<CarBrandModelDTO> cars = new ObjectMapper().readValue(response,  new TypeReference<List<CarBrandModelDTO>>(){});
-                        System.out.println(cars);
-                    } catch (JsonProcessingException e) {
-                        throw new RuntimeException(e);
-                    }
-                })
-                .join();
-     */
     @Override
     public List<CarBrandModelDTO> getCarBrands() {
         List<CarBrandModelDTO> brands = new ArrayList<CarBrandModelDTO>();
@@ -70,7 +44,7 @@ public class VeicleServiceImpl extends CrudServiceImpl<Veicle, UUID> implements 
                 .header("chave" , CarBrandModelDTO.KEY)
                 .POST(HttpRequest.BodyPublishers.ofString(CarBrandModelDTO.JSON_REFERENCE_TABLE +
                                 CarBrandModelDTO.REFERENCE_TABLE +
-                                CarBrandModelDTO.JSON_VEICLE_TYPE + "}"))
+                                CarBrandModelDTO.JSON_VEICLE_TYPE + CarBrandModelDTO.VEICLE_TYPE + "}"))
                 .build();
         client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenApply(HttpResponse::body)
@@ -78,13 +52,6 @@ public class VeicleServiceImpl extends CrudServiceImpl<Veicle, UUID> implements 
                     brand.setJson(response.replace("Label", "label").replace("Value","value"));
                 })
                 .join();
-        while(brand.getJson().equals("")) {
-            try {
-                Thread.sleep(1);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        }
         try {
             brands = new ObjectMapper().readValue(brand.getJson(),  new TypeReference<List<CarBrandModelDTO>>(){});
             brand.setJson(null);
@@ -93,4 +60,36 @@ public class VeicleServiceImpl extends CrudServiceImpl<Veicle, UUID> implements 
         }
         return brands;
     }
+
+    @Override
+    public List<CarBrandModelDTO> getCarModels(int brandCode) {
+        ModelDTO models = new ModelDTO();
+        CarBrandModelDTO model = new CarBrandModelDTO();
+        HttpClient client = HttpClient.newHttpClient();
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(CarBrandModelDTO.URL_MODEL))
+                .header("Content-Type", "application/json")
+                .header("chave" , CarBrandModelDTO.KEY)
+                .POST(HttpRequest.BodyPublishers.ofString(CarBrandModelDTO.JSON_REFERENCE_TABLE +
+                        CarBrandModelDTO.REFERENCE_TABLE +
+                        CarBrandModelDTO.JSON_VEICLE_TYPE + CarBrandModelDTO.VEICLE_TYPE +
+                        CarBrandModelDTO.JSON_BRAND_CODE + brandCode + "}"))
+                .build();
+        client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(HttpResponse::body)
+                .thenAccept(response -> {
+                    model.setJson(response.replace("Label", "label").replace("Value","value")
+                            .replace("Modelos", "carBrandModelDTO").replace("Anos", "anos"));
+                })
+                .join();
+        try {
+            models = new ObjectMapper().readValue(model.getJson(),  new TypeReference<ModelDTO>(){});
+            model.setJson(null);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+        return models.getCarBrandModelDTO();
+    }
+
+
 }
